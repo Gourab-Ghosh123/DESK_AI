@@ -1,30 +1,63 @@
 const Ticket = require("../models/ticket");
 
+const {
+    analyzeTicket,
+    generateResponse
+} = require("../services/aiService");
+
 
 // CREATE TICKET
 const createTicket = async (req, res) => {
     try {
+
         const { title, description } = req.body;
 
-        // Basic validation
         if (!title || !description) {
             return res.status(400).json({
                 message: "Title and description are required"
             });
         }
 
+        // 1. Create ticket in MongoDB
         const ticket = await Ticket.create({
             title,
             description,
             createdBy: req.user.userId
         });
 
+
+        // 2. Send ticket to Python AI
+        try {
+
+            const analysis = await analyzeTicket(ticket);
+
+            // 3. Save AI analysis into MongoDB
+            ticket.category = analysis.category;
+            ticket.priority = analysis.priority;
+            ticket.sentiment = analysis.sentiment;
+            ticket.summary = analysis.summary;
+
+            await ticket.save();
+
+        } catch (aiError) {
+
+            console.error(
+                "AI analysis failed:",
+                aiError.message
+            );
+
+            // Ticket still exists even if AI fails
+        }
+
+
+        // 4. Return ticket
         res.status(201).json({
             message: "Ticket created successfully",
             ticket
         });
 
     } catch (error) {
+
         res.status(500).json({
             message: "Failed to create ticket",
             error: error.message
@@ -152,6 +185,53 @@ const updateTicket = async (req, res) => {
     }
 };
 
+const generateAITicketResponse = async (req, res) => {
+    try {
+
+        // Only agents and admins can use AI response assistant
+        if (
+            req.user.role !== "agent" &&
+            req.user.role !== "admin"
+        ) {
+            return res.status(403).json({
+                message: "Only agents and admins can generate AI responses"
+            });
+        }
+
+
+        // Find ticket
+        const ticket = await Ticket.findById(req.params.id);
+
+        if (!ticket) {
+            return res.status(404).json({
+                message: "Ticket not found"
+            });
+        }
+
+
+        // Generate response using Python AI service
+        const result = await generateResponse(ticket);
+
+
+        res.status(200).json({
+            message: "AI response generated successfully",
+            response: result.response
+        });
+
+    } catch (error) {
+
+        console.error(
+            "AI response generation failed:",
+            error.message
+        );
+
+        res.status(500).json({
+            message: "Failed to generate AI response",
+            error: error.message
+        });
+    }
+};
+
 
 // DELETE TICKET
 const deleteTicket = async (req, res) => {
@@ -194,5 +274,6 @@ module.exports = {
     getTickets,
     getTicketById,
     updateTicket,
-    deleteTicket
+    deleteTicket,
+    generateAITicketResponse
 };

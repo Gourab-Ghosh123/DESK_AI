@@ -4,6 +4,8 @@ import json
 from dotenv import load_dotenv
 from groq import Groq
 
+from schemas.ticket_schema import TicketAnalysis
+
 
 load_dotenv()
 
@@ -122,6 +124,16 @@ Example:
 
     content = response.choices[0].message.content
 
-    result = json.loads(content)
+    try:
 
-    return result
+        data = json.loads(content)
+
+    except json.JSONDecodeError:
+
+        raise ValueError(
+            "LLM returned invalid JSON"
+        )
+
+    validated = TicketAnalysis.model_validate(data)
+
+    return validated

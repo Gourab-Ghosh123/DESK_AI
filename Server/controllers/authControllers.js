@@ -105,7 +105,31 @@ const loginUser = async (req, res) => {
 };
 
 
+const getAgents = async (req, res) => {
+
+    try {
+
+        const agents = await User.find({
+            role: "agent"
+        }).select("name email");
+
+        res.status(200).json({
+            agents
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            message: "Failed to fetch agents",
+            error: error.message
+        });
+
+    }
+};
+
+
 module.exports = {
     registerUser,
-    loginUser
+    loginUser,
+    getAgents
 };

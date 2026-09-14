@@ -7,7 +7,8 @@ const {
     getTickets,
     getTicketById,
     updateTicket,
-    deleteTicket
+    deleteTicket,
+    generateAITicketResponse
 } = require("../controllers/ticketController");
 
 const protect = require("../middleware/authMiddleware");
@@ -33,6 +34,12 @@ router.put("/:id", protect, updateTicket);
 
 // DELETE /api/tickets/:id
 router.delete("/:id", protect, deleteTicket);
+
+router.post(
+    "/:id/generate-response",
+    protect,
+    generateAITicketResponse
+);
 
 
 module.exports = router;
